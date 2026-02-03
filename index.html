@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aslanov WhatsApp</title>
+    <style>
+        :root {
+            --primary: #009688; /* WhatsApp Green */
+            --bg-chat: #e5ddd5;
+            --white: #ffffff;
+            --gray-light: #f0f2f5;
+            --msg-out: #dcf8c6;
+            --msg-in: #ffffff;
+        }
+
+        body { 
+            font-family: 'Segoe UI', "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background: #d9dbd5; 
+            margin: 0; 
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* АВТОРИЗАЦИЯ */
+        #authBox {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            text-align: center;
+            width: 300px;
+        }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box;}
+        button { width: 100%; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:hover { opacity: 0.9; }
+
+        /* ГЛАВНЫЙ ИНТЕРФЕЙС */
+        #app {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+            max-width: 1400px;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        @media (min-width: 1000px) {
+            #app { height: 95vh; top: 2.5vh; position: relative; }
+        }
+
+        /* ЛЕВАЯ ПАНЕЛЬ (Контакты) */
+        .sidebar {
+            width: 35%;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            background: white;
+        }
+        
+        .sidebar-header {
+            background: var(--gray-light);
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .user-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .contact-item {
+            display: flex;
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: 0.2s;
+            align-items: center;
+        }
+        .contact-item:hover { background: #f5f5f5; }
+        .contact-item.active { background: #ebebeb; }
+
+        .avatar {
+            width: 45px; height: 45px;
+            background: #ccc;
+            border-radius: 50%;
+            margin-right: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+            position: relative;
+        }
+        
+        /* Зеленая точка онлайн */
+        .status-dot {
+            width: 10px; height: 10px; background: #00ff00; border: 2px solid white;
+            border-radius: 50%; position: absolute; bottom: 0; right: 0;
+            display: none;
+        }
+        .status-dot.online { display: block; }
+
+        .contact-info { flex: 1; overflow: hidden; }
+        .contact-name { font-weight: bold; font-size: 16px; margin-bottom: 5px; color: #333; }
+        .last-msg { font-size: 13px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* ПРАВАЯ ПАНЕЛЬ (Чат) */
+        .chat-area {
+            width: 65%;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-chat);
+            position: relative;
+        }
+        
+        /* Если чат не выбран */
+        .no-chat-selected {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100%; color: #888; text-align: center;
+        }
+
+        .chat-header {
+            height: 60px;
+            background: var(--gray-light);
+            padding: 0 20px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .messages-box {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background-image: url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png"); /* Фон WhatsApp */
+            background-repeat: repeat;
+        }
+
+        .msg {
+            max-width: 60%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            position: relative;
+            box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+            word-wrap: break-word;
+        }
+        .msg.mine { align-self: flex-end; background: var(--msg-out); }
+        .msg.theirs { align-self: flex-start; background: var(--msg-in); }
+        .msg-time { font-size: 10px; color: #999; float: right; margin-left: 10px; margin-top: 5px; }
+
+        .input-box {
+            background: var(--gray-light);
+            padding: 10px 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .input-box input { border-radius: 20px; border: none; padding: 12px; }
+
+        /* Модальное окно (Добавить контакт) */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: none;
+            justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 300px; }
+
+        /* Анимация печатает */
+        .typing { font-size: 12px; color: var(--primary); font-style: italic; margin-left: 10px; opacity: 0; transition: 0.3s; }
+        .typing.active { opacity: 1; }
+
+    </style>
+</head>
+<body>
+
+<div id="authBox" style="display:flex; flex-direction:column;">
+    <h2>WhatsApp Web</h2>
+    <input id="email" type="email" placeholder="Email">
+    <input id="pass" type="password" placeholder="Пароль">
+    <button id="btnLogin">Войти</button>
+    <button id="btnReg" style="background:#ccc; margin-top:5px; color:#333;">Регистрация</button>
+</div>
+
+<div id="app" style="display:none;">
+    
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div id="myProfile" style="display:flex; align-items:center;">
+                <div class="avatar" style="background:var(--primary)">Я</div>
+                <span id="myNickDisplay" style="margin-left:10px; font-weight:bold;">...</span>
+            </div>
+            <div>
+                <button id="btnAddContactBtn" style="width:auto; padding:5px 10px; font-size:20px; background:none; color:#555;">➕</button>
+                <button id="btnLogout" style="width:auto; padding:5px 10px; font-size:12px; background:none; color:red;">Выход</button>
+            </div>
+        </div>
+        
+        <div id="contactsList" class="user-list">
+            </div>
+    </div>
+
+    <div class="chat-area">
+        
+        <div id="noChat" class="no-chat-selected">
+            <h2 style="color:#555">WhatsApp Web</h2>
+            <p>Выберите чат слева или создайте новый, чтобы начать общение.</p>
+        </div>
+
+        <div id="activeChat" style="display:none; flex-direction:column; height:100%;">
+            <div class="chat-header">
+                <div class="avatar" id="headerAvatar">?</div>
+                <div>
+                    <div class="contact-name" id="headerName">Имя</div>
+                    <div id="headerStatus" style="font-size:12px; color:gray;">был(а) недавно</div>
+                </div>
+                <div class="typing" id="typingIndicator">печатает...</div>
+            </div>
+
+            <div id="messagesList" class="messages-box"></div>
+
+            <div class="input-box">
+                <input id="msgInput" placeholder="Введите сообщение" autocomplete="off">
+                <button id="sendBtn" style="width:50px; border-radius:50%;">➤</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modalAdd" class="modal">
+    <div class="modal-content">
+        <h3>Новый чат</h3>
+        <p>Введите UID пользователя:</p>
+        <input id="newContactUid" placeholder="UID...">
+        <input id="newContactName" placeholder="Имя (как записать у себя)">
+        <button id="confirmAddContact">Начать общение</button>
+        <button id="closeModal" style="background:#ccc; margin-top:5px; color:black;">Отмена</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, setDoc, getDoc, doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // ТВОЙ КОНФИГ (ОСТАВЬ КАК ЕСТЬ)
+    const firebaseConfig = {
+        apiKey: "AIzaSyCq4IuYRYx4a78u5uf4cc-WrpdWks3BLrg",
+        authDomain: "aslanovchat-e4964.firebaseapp.com",
+        projectId: "aslanovchat-e4964",
+        storageBucket: "aslanovchat-e4964.appspot.com",
+        messagingSenderId: "110257571643",
+        appId: "1:110257571643:web:6dd1529642fc6b665e991e",
+        measurementId: "G-GPGYLEEY5J"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let currentUser = null;
+    let currentChatPartner = null; // UID с кем говорим
+    let currentChatId = null;
+    let unsubscribeMsgs = null;
+    let typingTimeout = null;
+
+    // === ЭЛЕМЕНТЫ DOM ===
+    const els = {
+        auth: document.getElementById('authBox'),
+        app: document.getElementById('app'),
+        email: document.getElementById('email'),
+        pass: document.getElementById('pass'),
+        contacts: document.getElementById('contactsList'),
+        noChat: document.getElementById('noChat'),
+        activeChat: document.getElementById('activeChat'),
+        msgs: document.getElementById('messagesList'),
+        inp: document.getElementById('msgInput'),
+        headerName: document.getElementById('headerName'),
+        headerAvatar: document.getElementById('headerAvatar'),
+        typing: document.getElementById('typingIndicator'),
+        modal: document.getElementById('modalAdd'),
+        newUid: document.getElementById('newContactUid'),
+        newName: document.getElementById('newContactName')
+    };
+
+    // === АВТОРИЗАЦИЯ ===
+    document.getElementById('btnLogin').onclick = () => signInWithEmailAndPassword(auth, els.email.value, els.pass.value).catch(alert);
+    document.getElementById('btnReg').onclick = async () => {
+        try {
+            const cred = await createUserWithEmailAndPassword(auth, els.email.value, els.pass.value);
+            // Создаем профиль
+            await setDoc(doc(db, "users", cred.user.uid), { 
+                email: els.email.value, 
+                nickname: els.email.value.split('@')[0],
+                status: 'online'
+            });
+            alert("Регистрация успешна! UID: " + cred.user.uid);
+        } catch(e) { alert(e.message); }
+    };
+    document.getElementById('btnLogout').onclick = () => {
+        // Ставим оффлайн перед выходом
+        if(currentUser) updateDoc(doc(db, "users", currentUser.uid), { status: 'offline' });
+        signOut(auth);
+        location.reload();
+    };
+
+    // === УПРАВЛЕНИЕ КОНТАКТАМИ ===
+    document.getElementById('btnAddContactBtn').onclick = () => els.modal.style.display = 'flex';
+    document.getElementById('closeModal').onclick = () => els.modal.style.display = 'none';
+    
+    document.getElementById('confirmAddContact').onclick = async () => {
+        const uid = els.newUid.value.trim();
+        const name = els.newName.value.trim() || "Без имени";
+        if(!uid) return;
+
+        // Сохраняем контакт себе
+        await setDoc(doc(db, "users", currentUser.uid, "myContacts", uid), {
+            uid: uid,
+            displayName: name,
+            lastMsg: "",
+            time: Date.now()
+        }, { merge: true });
+
+        els.modal.style.display = 'none';
+        els.newUid.value = "";
+        els.newName.value = "";
+    };
+
+    // === ЗАГРУЗКА СПИСКА КОНТАКТОВ ===
+    function loadContacts() {
+        // Слушаем изменения в моем списке контактов
+        const q = query(collection(db, "users", currentUser.uid, "myContacts"), orderBy("time", "desc"));
+        onSnapshot(q, (snap) => {
+            els.contacts.innerHTML = "";
+            snap.forEach(d => {
+                const contact = d.data();
+                const div = document.createElement('div');
+                div.className = `contact-item ${currentChatPartner === contact.uid ? 'active' : ''}`;
+                
+                // Проверяем онлайн статус (отдельный слушатель)
+                // Для простоты здесь просто заглушка, но мы добавим слушатель ниже
+                
+                div.innerHTML = `
+                    <div class="avatar">
+                        ${contact.displayName[0].toUpperCase()}
+                        <div class="status-dot" id="status-${contact.uid}"></div>
+                    </div>
+                    <div class="contact-info">
+                        <div class="contact-name">${contact.displayName}</div>
+                        <div class="last-msg">${contact.lastMsg || "Начните общение"}</div>
+                    </div>
+                `;
+                
+                div.onclick = () => openChat(contact);
+                els.contacts.appendChild(div);
+
+                // Реальный статус онлайн/оффлайн
+                onSnapshot(doc(db, "users", contact.uid), (userSnap) => {
+                    if(userSnap.exists()) {
+                        const s = userSnap.data().status;
+                        const dot = document.getElementById(`status-${contact.uid}`);
+                        if(s === 'online') dot.classList.add('online');
+                        else dot.classList.remove('online');
+                    }
+                });
+            });
+        });
+    }
+
+    // === ОТКРЫТИЕ ЧАТА ===
+    function getChatId(u1, u2) { return [u1, u2].sort().join("_"); }
+
+    async function openChat(contact) {
+        currentChatPartner = contact.uid;
+        currentChatId = getChatId(currentUser.uid, contact.uid);
+        
+        // UI
+        els.noChat.style.display = 'none';
+        els.activeChat.style.display = 'flex';
+        els.headerName.innerText = contact.displayName;
+        els.headerAvatar.innerText = contact.displayName[0].toUpperCase();
+        
+        // Подсветка активного
+        document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
+
+        if(unsubscribeMsgs) unsubscribeMsgs();
+
+        // Загрузка сообщений
+        const q = query(collection(db, "chats", currentChatId, "messages"), orderBy("time", "asc"));
+        unsubscribeMsgs = onSnapshot(q, (snap) => {
+            els.msgs.innerHTML = "";
+            snap.forEach(d => {
+                const m = d.data();
+                const isMine = m.uid === currentUser.uid;
+                const div = document.createElement('div');
+                div.className = `msg ${isMine ? 'mine' : 'theirs'}`;
+                
+                // Время
+                const date = new Date(m.time);
+                const timeStr = date.getHours().toString().padStart(2,'0') + ":" + date.getMinutes().toString().padStart(2,'0');
+
+                div.innerHTML = `${m.text} <span class="msg-time">${timeStr}</span>`;
+                els.msgs.appendChild(div);
+            });
+            els.msgs.scrollTop = els.msgs.scrollHeight;
+        });
+
+        // Слушаем "Печатает..."
+        onSnapshot(doc(db, "chats", currentChatId, "status", "typing"), (snap) => {
+            if(snap.exists()) {
+                const data = snap.data();
+                if(data[contact.uid]) els.typing.classList.add('active');
+                else els.typing.classList.remove('active');
+            }
+        });
+    }
+
+    // === ОТПРАВКА ===
+    async function sendMessage() {
+        if(!currentChatId || !els.inp.value.trim()) return;
+        const text = els.inp.value;
+        els.inp.value = "";
+
+        const time = Date.now();
+
+        // 1. Добавляем сообщение
+        await addDoc(collection(db, "chats", currentChatId, "messages"), {
+            uid: currentUser.uid,
+            text: text,
+            time: time
+        });
+
+        // 2. Обновляем "Последнее сообщение" мне и ему
+        const myRef = doc(db, "users", currentUser.uid, "myContacts", currentChatPartner);
+        const hisRef = doc(db, "users", currentChatPartner, "myContacts", currentUser.uid);
+
+        await updateDoc(myRef, { lastMsg: "Вы: " + text, time: time });
+        
+        // Если у него меня еще нет в контактах, создаем
+        await setDoc(hisRef, { 
+            uid: currentUser.uid, 
+            displayName: els.auth.querySelector('input').value.split('@')[0] || "Друг", // Упрощено
+            lastMsg: text, 
+            time: time 
+        }, { merge: true });
+
+        // Сбрасываем тайпинг
+        updateTyping(false);
+    }
+
+    document.getElementById('sendBtn').onclick = sendMessage;
+    els.inp.onkeypress = (e) => { if(e.key === "Enter") sendMessage(); };
+
+    // Тайпинг логика
+    function updateTyping(isTyping) {
+        if(!currentChatId) return;
+        setDoc(doc(db, "chats", currentChatId, "status", "typing"), {
+            [currentUser.uid]: isTyping
+        }, { merge: true });
+    }
+
+    els.inp.addEventListener('input', () => {
+        updateTyping(true);
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => updateTyping(false), 2000);
+    });
+
+    // === ГЛАВНЫЙ СТАТУС ===
+    onAuthStateChanged(auth, user => {
+        if (user) {
+            currentUser = user;
+            els.auth.style.display = 'none';
+            els.app.style.display = 'flex';
+            document.getElementById('myNickDisplay').innerText = user.email.split('@')[0]; // Ник из почты
+            
+            // Ставим онлайн
+            updateDoc(doc(db, "users", user.uid), { status: 'online' });
+            
+            loadContacts();
+        } else {
+            currentUser = null;
+            els.auth.style.display = 'flex';
+            els.app.style.display = 'none';
+        }
+    });
+
+</script>
+</body>
+</html>
